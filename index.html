@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Algo & CS 复习系统</title>
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- 新增：Markdown 解析与代码高亮依赖 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.8.0/styles/github.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.8.0/lib/highlight.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
+</head>
+<body>
+
+<div class="top-nav">
+    <div class="nav-container">
+        <h2>Review System</h2>
+        <div class="tabs">
+            <div class="tab active" data-target="today" id="tab-today">📅 今日待复习</div>
+            <div class="tab" data-target="kp-algo" id="tab-kp-algo">💻 算法刷题库</div>
+            <div class="tab" data-target="kp-cs" id="tab-kp-cs">🖥️ 计算机基础</div>
+            <div class="tab" data-target="wq-choice" id="tab-wq-choice">📝 笔试错题集</div>
+        </div>
+    </div>
+</div>
+
+<div class="main-container">
+    <div id="stats-container" class="stats-card" style="display: none;">
+        <div class="stats-header"><h3>算法练习趋势 (近 7 日)</h3></div>
+        <div id="simple-chart" class="simple-chart"></div>
+    </div>
+
+    <div class="header-stats">
+        <span>当前视图: <strong id="current-view-title">今日待复习</strong></span>
+        <div class="stats">待办任务: <span id="due-count" class="badge">0</span></div>
+    </div>
+
+    <div class="input-card" id="form-container" style="display: none;"></div>
+    <div id="filter-container" style="display: none; margin-bottom: 15px;"></div>
+    <div id="list-container" class="list-container"></div>
+</div>
+
+<div class="modal-overlay" id="review-modal">
+    <div class="modal">
+        <h2>⚔️ 巩固挑战触发！</h2>
+        <p class="modal-sub">复习知识点前，请先检验对应的历史错题：</p>
+        <div class="wq-list" id="modal-wq-list"></div>
+        <div class="modal-actions">
+            <button class="btn-skip" onclick="app.confirmReview(false)">跳过</button>
+            <button class="btn-primary" onclick="app.confirmReview(true)">已掌握</button>
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
