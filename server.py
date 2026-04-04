@@ -117,6 +117,30 @@ def update_kp(kp_id):
     finally:
         connection.close()
 
+# 3.1 更新知识点详情 (PUT /api/kp/<id>/details)
+@app.route('/api/kp/<kp_id>/details', methods=['PUT'])
+def update_kp_details(kp_id):
+    data = request.json
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            sql = """UPDATE knowledge_points 
+                     SET title = %s, link = %s, tags = %s, description = %s, is_perfect = %s 
+                     WHERE id = %s"""
+            cursor.execute(sql, (
+                data.get('title'), data.get('link'), 
+                json.dumps(data.get('tags', [])),
+                data.get('desc', ''), 
+                int(data.get('isPerfect', 0)), 
+                kp_id
+            ))
+        connection.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        connection.close()
+
 # 4. 删除知识点 (DELETE /api/kp/<id>)
 @app.route('/api/kp/<kp_id>', methods=['DELETE'])
 def delete_kp(kp_id):

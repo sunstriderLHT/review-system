@@ -33,6 +33,10 @@ const StorageService = {
         await fetch(`${this.API_URL}/kp/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(updateData) });
         this.invalidateCache();
     },
+    async updateKpDetails(id, data) {
+        await fetch(`${this.API_URL}/kp/${id}/details`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+        this.invalidateCache();
+    },
     async deleteKp(id) {
         await fetch(`${this.API_URL}/kp/${id}`, { method: 'DELETE' });
         this.invalidateCache();
@@ -60,6 +64,8 @@ const app = {
     activeTagPrefix: '',
     currentFilterTag: '',
     debounceTimer: null,
+    editingId: null,
+    reviewSuccess: null,
 
     debounce(fn, delay) {
         return (...args) => {
@@ -385,24 +391,169 @@ const app = {
 
     triggerReview(id) {
         const point = this.db.kp.find(p => p.id === id);
+        this.pendingReviewId = id;
+        
         const relatedWQs = this.db.wq.filter(wq => wq.tags.some(tag => point.tags.includes(tag)));
+        const wqSection = document.getElementById('review-wq-section');
+        
         if (relatedWQs.length > 0) {
-            this.pendingReviewId = id;
+            wqSection.style.display = 'block';
             document.getElementById('modal-wq-list').innerHTML = relatedWQs.map(wq => `
                 <div class="wq-item">
                     <a href="${wq.link || '#'}" target="_blank">[笔试错题] ${wq.title} ↗</a>
                     <div class="wq-note">⚠️ 避坑提醒：${wq.note}</div>
                 </div>`).join('');
-            document.getElementById('review-modal').style.display = 'flex';
         } else {
-            this.executeReview(id);
+            wqSection.style.display = 'none';
         }
+
+        document.getElementById('review-desc-section').style.display = 'block';
+        document.getElementById('review-desc-input').value = point.desc || '';
+        
+        document.getElementById('review-modal').style.display = 'flex';
+    },
+
+    showReviewResult(isSuccess) {
+        this.reviewSuccess = isSuccess;
+        document.getElementById('btn-review-skip').innerText = '上一步';
+        document.getElementById('btn-review-skip').onclick = () => this.backToReviewDetail();
+    },
+
+    backToReviewDetail() {
+        document.getElementById('btn-review-skip').innerText = '跳过';
+        document.getElementById('btn-review-skip').onclick = () => this.confirmReview(false);
     },
 
     confirmReview(isSuccess) {
         document.getElementById('review-modal').style.display = 'none';
-        if (this.pendingReviewId && isSuccess) this.executeReview(this.pendingReviewId);
+        
+        if (this.pendingReviewId) {
+            const point = this.db.kp.find(p => p.id === this.pendingReviewId);
+            const newDesc = document.getElementById('review-desc-input').value.trim();
+            
+            if (newDesc && newDesc !== point.desc) {
+                point.desc = newDesc;
+                StorageService.updateKpDetails(this.pendingReviewId, { 
+                    title: point.title, 
+                    link: point.link, 
+                    tags: point.tags, 
+                    desc: newDesc, 
+                    isPerfect: point.isPerfect 
+                });
+            }
+
+            if (isSuccess || this.reviewSuccess) {
+                this.executeReview(this.pendingReviewId);
+            }
+        }
+        
         this.pendingReviewId = null;
+        this.reviewSuccess = null;
+        document.getElementById('btn-review-skip').innerText = '跳过';
+        document.getElementById('btn-review-skip').onclick = () => this.confirmReview(false);
+    },
+
+    openEditModal(id) {
+        const item = this.db.kp.find(p => p.id === id);
+        if (!item) return;
+        
+        this.editingId = id;
+        this.currentFormTags = [...(item.tags || [])];
+        
+        document.getElementById('edit-title').value = item.title || '';
+        document.getElementById('edit-link').value = item.link || '';
+        document.getElementById('edit-desc').value = item.desc || '';
+        document.getElementById('edit-perfect').checked = item.isPerfect || false;
+        
+        this.renderFormTagsUIForEdit();
+        this.initTagInputEdit();
+        
+        document.getElementById('edit-modal').style.display = 'flex';
+    },
+
+    closeEditModal() {
+        document.getElementById('edit-modal').style.display = 'none';
+        this.editingId = null;
+        this.currentFormTags = [];
+    },
+
+    renderFormTagsUIForEdit() {
+        const container = document.getElementById('edit-tags-container');
+        if (container) {
+            container.innerHTML = this.currentFormTags.map(t => `<span class="tag-chip">${t} <span class="remove" onclick="app.removeFormTagEdit('${t}')">×</span></span>`).join('');
+        }
+    },
+
+    removeFormTagEdit(tag) {
+        this.currentFormTags = this.currentFormTags.filter(t => t !== tag);
+        this.renderFormTagsUIForEdit();
+    },
+
+    initTagInputEdit() {
+        const input = document.getElementById('edit-tag-input');
+        const dropdown = document.getElementById('edit-tag-dropdown');
+        
+        const showDropdown = () => {
+            const filter = input.value.trim().toLowerCase();
+            const allTags = this.getAllUniqueTags();
+            let availableTags = allTags.filter(t => !this.currentFormTags.includes(t));
+            if (filter) availableTags = availableTags.filter(t => t.toLowerCase().includes(filter));
+
+            let html = '';
+            if (filter && !allTags.map(t => t.toLowerCase()).includes(filter)) {
+                html += `<div class="tag-option" onmousedown="app.addFormTagEdit('${input.value.trim()}')">➕ 创建新标签: <strong>${input.value.trim()}</strong></div>`;
+            }
+            if (availableTags.length > 0) {
+                html += availableTags.map(t => `<div class="tag-option" onmousedown="app.addFormTagEdit('${t}')">${t}</div>`).join('');
+            }
+            dropdown.innerHTML = html;
+            dropdown.style.display = 'block';
+        };
+
+        input.addEventListener('focus', showDropdown);
+        input.addEventListener('input', showDropdown);
+        input.addEventListener('blur', () => setTimeout(() => dropdown.style.display = 'none', 150));
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && input.value.trim()) {
+                e.preventDefault();
+                this.addFormTagEdit(input.value.trim());
+            }
+        });
+    },
+
+    addFormTagEdit(tag) {
+        if (!this.currentFormTags.includes(tag)) {
+            this.currentFormTags.push(tag);
+            this.renderFormTagsUIForEdit();
+        }
+        const input = document.getElementById('edit-tag-input');
+        input.value = '';
+        input.focus();
+    },
+
+    async saveEdit() {
+        if (!this.editingId) return;
+        
+        const title = document.getElementById('edit-title').value.trim();
+        if (!title) return alert('标题是必填的');
+        if (this.currentFormTags.length === 0) return alert('请至少添加一个标签！');
+
+        const updatedData = {
+            title: title,
+            link: document.getElementById('edit-link').value.trim(),
+            tags: [...this.currentFormTags],
+            desc: document.getElementById('edit-desc').value.trim(),
+            isPerfect: document.getElementById('edit-perfect').checked
+        };
+
+        const item = this.db.kp.find(p => p.id === this.editingId);
+        if (item) {
+            Object.assign(item, updatedData);
+        }
+
+        await StorageService.updateKpDetails(this.editingId, updatedData);
+        this.closeEditModal();
+        this.render();
     },
 
     async executeReview(id) {
@@ -528,6 +679,7 @@ const app = {
                         
                         <div class="card-actions" style="margin-top: -2px;">
                             ${(due && !mastered) ? `<button class="btn-success" onclick="app.triggerReview('${item.id}')">复习</button>` : ''}
+                            ${isAlgo ? `<button class="btn-secondary" onclick="app.openEditModal('${item.id}')">编辑</button>` : ''}
                             <button class="btn-danger" onclick="app.deleteItem('kp', '${item.id}')">删除</button>
                         </div>
                     </div>`;

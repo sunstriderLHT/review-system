@@ -50,7 +50,11 @@ input[type="checkbox"] { width: auto; transform: scale(1.2); cursor: pointer; }
 button { border: none; padding: 10px 18px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; }
 .btn-primary { background: var(--primary); color: white; }
 .btn-primary:hover { background: var(--primary-hover); }
+.btn-secondary { background: var(--bg); color: var(--text-muted); }
+.btn-secondary:hover { background: #E5E7EB; }
 .btn-success { background: var(--success); color: white; }
+.btn-warning { background: var(--warning); color: white; }
+.btn-warning:hover { background: #D97706; }
 .btn-danger { background: var(--bg); color: var(--danger); }
 .btn-danger:hover { background: #FEE2E2; }
 .btn-skip { background: var(--bg); color: var(--text-muted); }
