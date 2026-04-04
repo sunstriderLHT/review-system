@@ -44,13 +44,53 @@
 </div>
 
 <div class="modal-overlay" id="review-modal">
-    <div class="modal">
-        <h2>⚔️ 巩固挑战触发！</h2>
-        <p class="modal-sub">复习知识点前，请先检验对应的历史错题：</p>
-        <div class="wq-list" id="modal-wq-list"></div>
+    <div class="modal" style="max-width: 700px;">
+        <h2>⚔️ 巩固挑战</h2>
+        <div id="review-wq-section">
+            <p class="modal-sub">复习前检验相关错题：</p>
+            <div class="wq-list" id="modal-wq-list"></div>
+        </div>
+        <div id="review-desc-section" style="margin: 15px 0; display: none;">
+            <p class="modal-sub">📝 思路记录 / 本次复习感悟：</p>
+            <textarea id="review-desc-input" placeholder="记录本次复习的收获、调整思路等..." style="width: 100%; min-height: 120px; padding: 10px; border: 1px solid var(--border); border-radius: 4px;"></textarea>
+        </div>
         <div class="modal-actions">
-            <button class="btn-skip" onclick="app.confirmReview(false)">跳过</button>
-            <button class="btn-primary" onclick="app.confirmReview(true)">已掌握</button>
+            <button class="btn-skip" id="btn-review-skip" onclick="app.confirmReview(false)">跳过</button>
+            <button class="btn-warning" onclick="app.showReviewResult(false)">未达预期</button>
+            <button class="btn-success" onclick="app.showReviewResult(true)">已完成</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="edit-modal">
+    <div class="modal" style="max-width: 600px;">
+        <h2>✏️ 编辑算法题</h2>
+        <div class="form-grid">
+            <div class="form-row">
+                <input type="text" id="edit-title" placeholder="题目名称" style="flex: 1;">
+            </div>
+            <div class="form-row">
+                <div class="tag-input-wrapper" style="flex: 1;">
+                    <div id="edit-tags-container" class="tags-container"></div>
+                    <input type="text" id="edit-tag-input" placeholder="输入标签 (Enter添加)" autocomplete="off">
+                    <div id="edit-tag-dropdown" class="tag-dropdown"></div>
+                </div>
+            </div>
+            <div class="form-row">
+                <input type="url" id="edit-link" placeholder="题目链接" style="flex: 1;">
+            </div>
+            <div class="form-row">
+                <textarea id="edit-desc" placeholder="算法思路 (支持 Markdown)"></textarea>
+            </div>
+            <div class="form-row">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="edit-perfect"> 独立完美完成
+                </label>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-skip" onclick="app.closeEditModal()">取消</button>
+            <button class="btn-primary" onclick="app.saveEdit()">保存</button>
         </div>
     </div>
 </div>
