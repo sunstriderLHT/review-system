@@ -1,27 +1,53 @@
 const StorageService = {
     INTERVALS: [1, 2, 4, 7, 15, 30],
     API_URL: 'http://localhost:3000/api',
+    CACHE_KEY: 'reviewDataCache',
+    CACHE_TIMESTAMP_KEY: 'reviewDataTimestamp',
     
     async getData() {
+        const cached = localStorage.getItem(this.CACHE_KEY);
+        const timestamp = localStorage.getItem(this.CACHE_TIMESTAMP_KEY);
+        const now = Date.now();
+        
+        // Return cache if less than 5 minutes old
+        if (cached && timestamp && (now - parseInt(timestamp)) < 300000) {
+            return JSON.parse(cached);
+        }
+        
         try {
             const res = await fetch(`${this.API_URL}/data`);
-            return await res.json();
-        } catch (e) { return { kp: [], wq: [] }; }
+            const data = await res.json();
+            localStorage.setItem(this.CACHE_KEY, JSON.stringify(data));
+            localStorage.setItem(this.CACHE_TIMESTAMP_KEY, now.toString());
+            return data;
+        } catch (e) { 
+            return cached ? JSON.parse(cached) : { kp: [], wq: [] }; 
+        }
     },
+    
     async addKp(data) {
         await fetch(`${this.API_URL}/kp`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+        this.invalidateCache();
     },
     async updateKp(id, updateData) {
         await fetch(`${this.API_URL}/kp/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(updateData) });
+        this.invalidateCache();
     },
     async deleteKp(id) {
         await fetch(`${this.API_URL}/kp/${id}`, { method: 'DELETE' });
+        this.invalidateCache();
     },
     async addWq(data) {
         await fetch(`${this.API_URL}/wq`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+        this.invalidateCache();
     },
     async deleteWq(id) {
         await fetch(`${this.API_URL}/wq/${id}`, { method: 'DELETE' });
+        this.invalidateCache();
+    },
+    invalidateCache() {
+        localStorage.removeItem(this.CACHE_KEY);
+        localStorage.removeItem(this.CACHE_TIMESTAMP_KEY);
     }
 };
 
@@ -29,10 +55,18 @@ const app = {
     currentTab: 'today',
     db: { kp: [], wq: [] },
     pendingReviewId: null,
-    mdeInstance: null, // 新增：保存 Markdown 编辑器实例
+    mdeInstance: null,
     currentFormTags: [],
     activeTagPrefix: '',
-    currentFilterTag: '', // 新增：当前选择的筛选标签
+    currentFilterTag: '',
+    debounceTimer: null,
+
+    debounce(fn, delay) {
+        return (...args) => {
+            clearTimeout(this.debounceTimer);
+            this.debounceTimer = setTimeout(() => fn.apply(this, args), delay);
+        };
+    },
 
     async init() {
         // 新增：配置 marked.js 支持 highlight.js
@@ -92,7 +126,11 @@ const app = {
 
     setFilter(tag) {
         this.currentFilterTag = tag;
-        this.render();
+        this.debouncedRender();
+    },
+
+    debouncedRender: function() {
+        this.debounce(this.render, 100)();
     },
 
     // 新增：控制 Markdown 折叠展开
