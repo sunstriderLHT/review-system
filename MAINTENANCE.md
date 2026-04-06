@@ -15,7 +15,10 @@
 | **数据库连接池** | 使用 `dbutils.pooled_db.PooledDB` 预创建 5 个连接，避免每次请求创建新连接 | ✅ |
 | **Gzip 压缩** | 启用 `flask_compress` 自动压缩响应，降低网络传输量 | ✅ |
 | **移除调试模式** | 生产环境关闭 `debug=True`，提升性能 | ✅ |
-| **数据库索引** | 新增 `/api/init-indexes` 接口，可手动创建 `next_review` 和 `category` 索引 | ✅ |
+| **数据库索引** | 新增 `/api/init-indexes` 接口，可手动创建索引 | ✅ |
+| **自动解析标题** | 新增 `/api/parse-title` 接口，可从 LeetCode URL 提取标题 | ✅ |
+| **复习时间戳** | 复习时记录 `lastReviewAt` 时间戳，支持查看今日已复习 | ✅ |
+
 
 ### 2.2 前端优化 (app.js)
 
@@ -24,6 +27,14 @@
 | **本地缓存** | 使用 `localStorage` 缓存数据，5分钟内重复请求直接返回缓存 | ✅ |
 | **缓存失效机制** | 任何写操作（新增/更新/删除）自动清除缓存，确保数据一致 | ✅ |
 | **防抖渲染** | 筛选操作 100ms 防抖，避免频繁重渲染 DOM | ✅ |
+| **算法题编辑** | 支持编辑算法题的标题、链接、标签、思路、完美标记 | ✅ |
+| **复习时修改思路** | 复习时可编辑/更新思路记录 | ✅ |
+| **复习结果标记** | 支持「已完成」和「未达预期」两种复习结果 | ✅ |
+| **今日已复习 Tab** | 新增 Tab 查看今日复习内容，按复习时间倒序 | ✅ |
+| **Toast 提示** | 替换 alert 为底部 Toast 提示 | ✅ |
+| **链接自动提取标题** | 输入 LeetCode 链接后自动提取题目名称 | ✅ |
+| **简化录入流程** | 只填链接+标签即可创建记录 | ✅ |
+
 
 ---
 
@@ -32,16 +43,17 @@
 首次部署或更新时需安装以下 Python 依赖：
 
 ```bash
-pip install flask flask-cors flask-compress pymysql dbutils
+pip install flask flask-cors flask-compress pymysql dbutils requests
 ```
 
 ---
 
-## 4. 初始化数据库索引
+## 4. 初始化数据库
 
-系统首次运行或数据量较大时，建议创建索引以提升查询性能：
+系统首次运行或数据量较大时，建议初始化：
 
 ```bash
+# 创建索引和新字段
 curl -X POST http://localhost:3000/api/init-indexes
 ```
 
@@ -83,7 +95,26 @@ location.reload();
 
 ---
 
-## 7. 后续可考虑的优化方向
+## 7. 功能说明
+
+### 算法题录入
+- **必填**: 题目链接 + 标签
+- **可选**: 题目名称（留空则自动从链接提取）、思路
+- 支持从 LeetCode 链接自动解析标题（如 `two-sum` → `Two Sum`）
+
+### 复习流程
+1. 点击「复习」按钮
+2. 先显示相关错题供回顾
+3. 可编辑/更新思路记录
+4. 点击「已完成」或「未达预期」完成复习
+
+### 今日已复习
+- 自动记录复习时间 `lastReviewAt`
+- 按复习时间倒序显示今日已复习的题目
+
+---
+
+## 8. 后续可考虑的优化方向
 
 1. **分页加载**: 数据量大时改为分页 API，避免一次性加载全量数据
 2. **增量同步**: 仅同步变更数据，而非全量刷新
@@ -91,16 +122,18 @@ location.reload();
 4. **实时推送**: 使用 WebSocket 替代前端轮询，实现数据变更即时通知
 
 ---
+## 9. 常见问题
 
-## 8. 常见问题
 
 | 问题 | 解决方案 |
 |------|----------|
 | 启动报错 `ImportError: No module named 'dbutils'` | 执行 `pip install dbutils` |
 | 启动报错 `ImportError: No module named 'flask_compress'` | 执行 `pip install flask-compress` |
+| 启动报错 `ModuleNotFoundError: No module named 'requests'` | 执行 `pip install requests` |
 | 页面显示旧数据 | 清除浏览器缓存或手动清除 localStorage |
-| 数据库连接池耗尽 | 检查是否有未关闭的连接，确保在 `finally` 块中调用 `connection.close()` |
+| 数据库连接池耗尽 | 检查是否有未关闭的连接 |
+| 复习后今日已复习无数据 | 确认数据库有 `last_review_at` 字段，运行 init-indexes |
 
 ---
 
-*文档生成时间: 2026-04-04*
+*文档更新时间: 2026-04-06*
