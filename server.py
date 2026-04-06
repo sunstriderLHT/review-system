@@ -7,25 +7,27 @@ Created on Sat Feb 28 23:02:10 2026
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from flask_compress import Compress
 import pymysql
 import json
-
+from dbutils.pooled_db import PooledDB
 
 app = Flask(__name__)
-# 允许跨域请求，这样你的本地 html 才能访问 API
 CORS(app)
+Compress(app)
 
-# MySQL 数据库配置
 DB_CONFIG = {
     'host': 'localhost',
     'user': 'root',
     'password': '123456',
     'database': 'review_system',
-    'cursorclass': pymysql.cursors.DictCursor # 让查询结果以字典形式返回
+    'cursorclass': pymysql.cursors.DictCursor
 }
 
+db_pool = PooledDB(pymysql, 5, **DB_CONFIG)
+
 def get_db_connection():
-    return pymysql.connect(**DB_CONFIG)
+    return db_pool.connection()
 
 # 1. 获取全量数据 (GET /api/data)
 @app.route('/api/data', methods=['GET'])
@@ -115,6 +117,30 @@ def update_kp(kp_id):
     finally:
         connection.close()
 
+# 3.1 更新知识点详情 (PUT /api/kp/<id>/details)
+@app.route('/api/kp/<kp_id>/details', methods=['PUT'])
+def update_kp_details(kp_id):
+    data = request.json
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            sql = """UPDATE knowledge_points 
+                     SET title = %s, link = %s, tags = %s, description = %s, is_perfect = %s 
+                     WHERE id = %s"""
+            cursor.execute(sql, (
+                data.get('title'), data.get('link'), 
+                json.dumps(data.get('tags', [])),
+                data.get('desc', ''), 
+                int(data.get('isPerfect', 0)), 
+                kp_id
+            ))
+        connection.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        connection.close()
+
 # 4. 删除知识点 (DELETE /api/kp/<id>)
 @app.route('/api/kp/<kp_id>', methods=['DELETE'])
 def delete_kp(kp_id):
@@ -164,6 +190,20 @@ def delete_wq(wq_id):
     finally:
         connection.close()
 
+# 7. 创建索引 (仅首次运行)
+@app.route('/api/init-indexes', methods=['POST'])
+def init_indexes():
+    connection = get_db_connection()
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_kp_next_review ON knowledge_points(next_review)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_kp_category ON knowledge_points(category)")
+        connection.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        connection.close()
+
 if __name__ == '__main__':
-    # 端口保持 3000，和前端 app.js 里的请求地址一致
-    app.run(port=3000, debug=True)
+    app.run(port=3000)
